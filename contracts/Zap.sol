@@ -35,7 +35,13 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-contract MilZap is Ownable {
+interface IVault is IERC20 {
+    function deposit(uint256 amount) external;
+    function withdraw(uint256 shares) external;
+    function want() external pure returns (address);
+}
+
+contract Zap is Ownable {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
@@ -56,30 +62,31 @@ contract MilZap is Ownable {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         // we'll need this approval to add liquidity
         _approveTokenIfNeeded(_from, routerAddr);
+        _swapTokenToLP(_from, amount, _to, msg.sender, routerAddr);
 
-        // get pairs for desired lp
-        address token0 = IUniswapV2Pair(_to).token0();
-        address token1 = IUniswapV2Pair(_to).token1();
-        if (_from == token0 || _from == token1) { // check if we already have one of the assets
-            // if so, we're going to sell half of _from for the other token we need
-            // figure out which token we need, and approve
-            address other = _from == token0 ? token1 : token0;
-            _approveTokenIfNeeded(other, routerAddr);
-            // calculate amount of _from to sell
-            uint sellAmount = amount.div(2);
-            // execute swap
-            uint otherAmount = _swap(_from, sellAmount, other, address(this), routerAddr);
-            IUniswapV2Router01(routerAddr).addLiquidity(_from, other, amount.sub(sellAmount), otherAmount, 0, 0, msg.sender, block.timestamp);
-        } else {
-            // go through native token for highest liquidity
-            uint nativeAmount = _swapTokenForNative(_from, amount, address(this), routerAddr);
-            _swapNativeToLP(_to, nativeAmount, msg.sender, routerAddr);
-        }
+    }
+
+    function zapInTokenToVault(address _from, uint amount, address _to, address routerAddr, address _vault) external {
+        IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
+        _approveTokenIfNeeded(_from, routerAddr);
+        _approveTokenIfNeeded(_to, _vault);
+        uint lps = _swapTokenToLP(_from, amount, _to, address(this), routerAddr);
+        IVault vault = IVault(_vault);
+        vault.deposit(lps);
+        IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
     }
 
     function zapIn(address _to, address routerAddr) external payable {
         // from Native to an LP token through the specified router
         _swapNativeToLP(_to, msg.value, msg.sender, routerAddr);
+    }
+
+    function zapInToVault(address _to, address routerAddr, address _vault) external payable {
+        _approveTokenIfNeeded(_to, _vault);
+        uint lps = _swapNativeToLP(_to, msg.value, address(this), routerAddr);
+        IVault vault = IVault(_vault);
+        vault.deposit(lps);
+        IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
     }
 
     function zapAcross(address _from, uint amount, address _fromRouter, address _toRouter) external {
@@ -157,17 +164,40 @@ contract MilZap is Ownable {
         }
     }
 
-    function _swapNativeToLP(address _LP, uint amount, address recipient, address routerAddress) private {
+    function _swapTokenToLP(address _from, uint amount, address _to, address recipient, address routerAddr) private returns (uint) {
+                // get pairs for desired lp
+        if (_from == IUniswapV2Pair(_to).token0() || _from == IUniswapV2Pair(_to).token1()) { // check if we already have one of the assets
+            // if so, we're going to sell half of _from for the other token we need
+            // figure out which token we need, and approve
+            address other = _from == IUniswapV2Pair(_to).token0() ? IUniswapV2Pair(_to).token1() : IUniswapV2Pair(_to).token0();
+            _approveTokenIfNeeded(other, routerAddr);
+            // calculate amount of _from to sell
+            uint sellAmount = amount.div(2);
+            // execute swap
+            uint otherAmount = _swap(_from, sellAmount, other, address(this), routerAddr);
+            uint liquidity;
+            ( , , liquidity) = IUniswapV2Router01(routerAddr).addLiquidity(_from, other, amount.sub(sellAmount), otherAmount, 0, 0, recipient, block.timestamp);
+            return liquidity;
+        } else {
+            // go through native token for highest liquidity
+            uint nativeAmount = _swapTokenForNative(_from, amount, address(this), routerAddr);
+            return _swapNativeToLP(_to, nativeAmount, recipient, routerAddr);
+        }
+    }
+
+    function _swapNativeToLP(address _LP, uint amount, address recipient, address routerAddress) private returns (uint) {
             // LP
             IUniswapV2Pair pair = IUniswapV2Pair(_LP);
             address token0 = pair.token0();
             address token1 = pair.token1();
+            uint liquidity;
             if (token0 == WNATIVE || token1 == WNATIVE) {
                 address token = token0 == WNATIVE ? token1 : token0;
-                _swapHalfNativeAndProvide(token, amount, routerAddress, recipient);
+                ( , , liquidity) = _swapHalfNativeAndProvide(token, amount, routerAddress, recipient);
             } else {
-                _swapNativeToEqualTokensAndProvide(token0, token1, amount, routerAddress, recipient);
+                ( , , liquidity) = _swapNativeToEqualTokensAndProvide(token0, token1, amount, routerAddress, recipient);
             }
+            return liquidity;
     }
 
     function _swapHalfNativeAndProvide(address token, uint amount, address routerAddress, address recipient) private returns (uint, uint, uint) {

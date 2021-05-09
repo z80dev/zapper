@@ -54,6 +54,14 @@ module.exports = {
                  initialIndex: 1,
                 }
     },
+    maticmain: {
+      url: "https://rpc-mainnet.maticvigil.com/",
+      chainId: 137,
+      gasPrice: "auto",
+      accounts: {mnemonic: "",
+                 initialIndex: 1,
+                }
+    },
     ftmopera: {
       url: "https://rpcapi.fantom.network",
       chainId: 250,
