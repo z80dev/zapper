@@ -89,18 +89,19 @@ contract Zap is Ownable {
         IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
     }
 
-    function zapAcross(address _from, uint amount, address _fromRouter, address _toRouter) external {
+    function zapAcross(address _from, uint amount, address _toRouter) external {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         _approveTokenIfNeeded(_from, _fromRouter);
 
-        address fromToken0 = IUniswapV2Pair(_from).token0();
-        address fromToken1 = IUniswapV2Pair(_from).token1();
-        _approveTokenIfNeeded(fromToken0, _toRouter);
-        _approveTokenIfNeeded(fromToken1, _toRouter);
-        uint fromAmt0;
-        uint fromAmt1;
-        (fromAmt0, fromAmt1) = IUniswapV2Router01(_fromRouter).removeLiquidity(fromToken0, fromToken1, amount, 0, 0, address(this), block.timestamp);
-        IUniswapV2Router01(_toRouter).addLiquidity(fromToken0, fromToken1, fromAmt0, fromAmt1, 0, 0, msg.sender, block.timestamp);
+        IUniswapV2Pair pair = IUniswapV2Pair(_from);
+        _approveTokenIfNeeded(pair.token0(), _toRouter);
+        _approveTokenIfNeeded(pair.token1(), _toRouter);
+
+        IERC20(_from).safeTransfer(_from, amount);
+        uint amt0;
+        uint amt1;
+        (amt0, amt1) = pair.burn(address(this));
+        IUniswapV2Router01(_toRouter).addLiquidity(pair.token0(), pair.token1(), amt0, amt1, 0, 0, msg.sender, block.timestamp);
     }
 
     function zapOut(address _from, uint amount, address routerAddr) external {
