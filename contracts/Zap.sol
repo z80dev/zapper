@@ -64,7 +64,7 @@ contract Zap is Ownable, IZap {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         // we'll need this approval to add liquidity
         _approveTokenIfNeeded(_from, routerAddr);
-        _swapTokenToLP(_from, amount, _to, msg.sender, routerAddr);
+        _swapTokenToLP(_from, amount, _to, _recipient, routerAddr);
 
     }
 
@@ -75,12 +75,12 @@ contract Zap is Ownable, IZap {
         uint lps = _swapTokenToLP(_from, amount, _to, address(this), routerAddr);
         IVault vault = IVault(_vault);
         vault.deposit(lps);
-        IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
+        IERC20(_vault).safeTransfer(_recipient, vault.balanceOf(address(this)));
     }
 
     function zapIn(address _to, address routerAddr, address _recipient) external payable {
         // from Native to an LP token through the specified router
-        _swapNativeToLP(_to, msg.value, msg.sender, routerAddr);
+        _swapNativeToLP(_to, msg.value, _recipient, routerAddr);
     }
 
     function zapInToVault(address _to, address routerAddr, address _vault, address _recipient) external payable {
@@ -88,7 +88,7 @@ contract Zap is Ownable, IZap {
         uint lps = _swapNativeToLP(_to, msg.value, address(this), routerAddr);
         IVault vault = IVault(_vault);
         vault.deposit(lps);
-        IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
+        IERC20(_vault).safeTransfer(_recipient, vault.balanceOf(address(this)));
     }
 
     function zapAcross(address _from, uint amount, address _toRouter, address _recipient) external {
@@ -103,7 +103,7 @@ contract Zap is Ownable, IZap {
         uint amt0;
         uint amt1;
         (amt0, amt1) = pair.burn(address(this));
-        IUniswapV2Router01(_toRouter).addLiquidity(pair.token0(), pair.token1(), amt0, amt1, 0, 0, msg.sender, block.timestamp);
+        IUniswapV2Router01(_toRouter).addLiquidity(pair.token0(), pair.token1(), amt0, amt1, 0, 0, _recipient, block.timestamp);
     }
 
     function zapOut(address _from, uint amount, address routerAddr, address _recipient) external {
@@ -125,16 +125,16 @@ contract Zap is Ownable, IZap {
             uint amtETH;
             (amtToken, amtETH) = IUniswapV2Router01(routerAddr).removeLiquidityETH(token, amount, 0, 0, address(this), block.timestamp);
             // swap with msg.sender as recipient, so they already get the Native
-            _swapTokenForNative(token, amtToken, msg.sender, routerAddr);
+            _swapTokenForNative(token, amtToken, _recipient, routerAddr);
             // send other half of Native
-            TransferHelper.safeTransferETH(msg.sender, amtETH);
+            TransferHelper.safeTransferETH(_recipient, amtETH);
         } else {
             // convert both for Native with msg.sender as recipient
             uint amt0;
             uint amt1;
             (amt0, amt1) = IUniswapV2Router01(routerAddr).removeLiquidity(token0, token1, amount, 0, 0, address(this), block.timestamp);
-            _swapTokenForNative(token0, amt0, msg.sender, routerAddr);
-            _swapTokenForNative(token1, amt1, msg.sender, routerAddr);
+            _swapTokenForNative(token0, amt0, _recipient, routerAddr);
+            _swapTokenForNative(token1, amt1, _recipient, routerAddr);
         }
     }
 
@@ -156,7 +156,7 @@ contract Zap is Ownable, IZap {
         if (token1 != _to) {
             amt1 = _swap(token1, amt1, _to, address(this), routerAddr);
         }
-        IERC20(_to).safeTransferFrom(address(this), msg.sender, amt0.add(amt1));
+        IERC20(_to).safeTransfer(_recipient, amt0.add(amt1));
     }
 
     /* ========== Private Functions ========== */
