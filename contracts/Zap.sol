@@ -35,13 +35,15 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
+import "./IZap.sol";
+
 interface IVault is IERC20 {
     function deposit(uint256 amount) external;
     function withdraw(uint256 shares) external;
     function want() external pure returns (address);
 }
 
-contract Zap is Ownable {
+contract Zap is Ownable, IZap {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
@@ -57,7 +59,7 @@ contract Zap is Ownable {
 
     receive() external payable {}
 
-    function zapInToken(address _from, uint amount, address _to, address routerAddr) external {
+    function zapInToken(address _from, uint amount, address _to, address routerAddr, address _recipient) external {
         // From an ERC20 to an LP token, through specified router, going through base asset if necessary
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         // we'll need this approval to add liquidity
@@ -66,7 +68,7 @@ contract Zap is Ownable {
 
     }
 
-    function zapInTokenToVault(address _from, uint amount, address _to, address routerAddr, address _vault) external {
+    function zapInTokenToVault(address _from, uint amount, address _to, address routerAddr, address _vault, address _recipient) external {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         _approveTokenIfNeeded(_from, routerAddr);
         _approveTokenIfNeeded(_to, _vault);
@@ -76,12 +78,12 @@ contract Zap is Ownable {
         IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
     }
 
-    function zapIn(address _to, address routerAddr) external payable {
+    function zapIn(address _to, address routerAddr, address _recipient) external payable {
         // from Native to an LP token through the specified router
         _swapNativeToLP(_to, msg.value, msg.sender, routerAddr);
     }
 
-    function zapInToVault(address _to, address routerAddr, address _vault) external payable {
+    function zapInToVault(address _to, address routerAddr, address _vault, address _recipient) external payable {
         _approveTokenIfNeeded(_to, _vault);
         uint lps = _swapNativeToLP(_to, msg.value, address(this), routerAddr);
         IVault vault = IVault(_vault);
@@ -89,7 +91,7 @@ contract Zap is Ownable {
         IERC20(_vault).safeTransfer(msg.sender, vault.balanceOf(address(this)));
     }
 
-    function zapAcross(address _from, uint amount, address _toRouter) external {
+    function zapAcross(address _from, uint amount, address _toRouter, address _recipient) external {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         _approveTokenIfNeeded(_from, _fromRouter);
 
@@ -104,7 +106,7 @@ contract Zap is Ownable {
         IUniswapV2Router01(_toRouter).addLiquidity(pair.token0(), pair.token1(), amt0, amt1, 0, 0, msg.sender, block.timestamp);
     }
 
-    function zapOut(address _from, uint amount, address routerAddr) external {
+    function zapOut(address _from, uint amount, address routerAddr, address _recipient) external {
         // from an LP token to Native through specified router
         // take the LP token
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
@@ -136,7 +138,7 @@ contract Zap is Ownable {
         }
     }
 
-    function zapOutToken(address _from, uint amount, address _to, address routerAddr) external {
+    function zapOutToken(address _from, uint amount, address _to, address routerAddr, address _recipient) external {
         // from an LP token to an ERC20 through specified router
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
         _approveTokenIfNeeded(_from, routerAddr);
