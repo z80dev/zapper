@@ -58,7 +58,7 @@ module.exports = {
       url: "https://rpc-mainnet.maticvigil.com/",
       chainId: 137,
       gasPrice: "auto",
-      accounts: {mnemonic: "",
+      accounts: {mnemonic: process.env.MNEMONIC,
                  initialIndex: 1,
                 }
     },
@@ -66,7 +66,7 @@ module.exports = {
       url: "https://rpcapi.fantom.network",
       chainId: 250,
       gasPrice: "auto",
-      accounts: {mnemonic: "",
+      accounts: {mnemonic: process.env.MNEMONIC,
                  initialIndex: 1,
                 }
     },
@@ -82,22 +82,58 @@ module.exports = {
   solidity: {
     compilers: [
       {
-        version: "0.6.0"
+        version: "0.6.0",
+        settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000
+      }
+    }
       },
       {
-        version: "0.6.12"
+        version: "0.6.12",
+        settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000
+      }
+    }
       },
       {
-        version: "0.6.2"
+        version: "0.6.2",
+        settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000
+      }
+    }
       },
       {
-        version: "0.7.6"
+        version: "0.7.6",
+        settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000
+      }
+    }
       },
       {
         version: "0.8.0",
+        settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000
+      }
+    }
       },
       {
         version: "0.8.4",
+        settings: {
+      optimizer: {
+        enabled: true,
+        runs: 1000
+      }
+    }
       }
     ]
   },

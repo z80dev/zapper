@@ -34,6 +34,7 @@ import "../interfaces/IUniswapV2Pair.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 import "./IZap.sol";
 
@@ -43,7 +44,7 @@ interface IVault is IERC20 {
     function want() external pure returns (address);
 }
 
-contract Zap is Ownable, IZap {
+contract Zap is Ownable {
     using SafeMath for uint;
     using SafeERC20 for IERC20;
 
@@ -93,7 +94,6 @@ contract Zap is Ownable, IZap {
 
     function zapAcross(address _from, uint amount, address _toRouter, address _recipient) external {
         IERC20(_from).safeTransferFrom(msg.sender, address(this), amount);
-        _approveTokenIfNeeded(_from, _fromRouter);
 
         IUniswapV2Pair pair = IUniswapV2Pair(_from);
         _approveTokenIfNeeded(pair.token0(), _toRouter);
