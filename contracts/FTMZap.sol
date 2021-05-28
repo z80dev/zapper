@@ -30,6 +30,7 @@ import "./libraries/TransferHelper.sol";
 
 import "../interfaces/IUniswapV2Router01.sol";
 import "../interfaces/IUniswapV2Pair.sol";
+import "../interfaces/IHyperswapRouter01.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/math/SafeMath.sol";
@@ -51,6 +52,8 @@ contract Zap is Ownable {
     /* ========== STATE VARIABLES ========== */
 
     address private WNATIVE;
+
+    mapping (address => bool) public useNativeRouter;
 
     constructor(address _WNATIVE) Ownable() {
        WNATIVE = _WNATIVE;
@@ -224,9 +227,15 @@ contract Zap is Ownable {
     function _swapHalfNativeAndProvide(address token, uint amount, address routerAddress, address recipient) private returns (uint, uint, uint) {
             uint swapValue = amount.div(2);
             uint tokenAmount = _swapNativeForToken(token, swapValue, address(this), routerAddress);
-            IUniswapV2Router01 router = IUniswapV2Router01(routerAddress);
             _approveTokenIfNeeded(token, routerAddress);
-            return router.addLiquidityETH{value : amount.sub(swapValue)}(token, tokenAmount, 0, 0, recipient, block.timestamp);
+            if (useNativeRouter[routerAddress]) {
+                IHyperswapRouter01 router = IHyperswapRouter01(routerAddress);
+                return router.addLiquidityFTM{value : amount.sub(swapValue)}(token, tokenAmount, 0, 0, recipient, block.timestamp);
+            }
+            else {
+                IUniswapV2Router01 router = IUniswapV2Router01(routerAddress);
+                return router.addLiquidityETH{value : amount.sub(swapValue)}(token, tokenAmount, 0, 0, recipient, block.timestamp);
+            }
     }
 
     function _swapNativeToEqualTokensAndProvide(address token0, address token1, uint amount, address routerAddress, address recipient) private returns (uint, uint, uint) {
@@ -291,5 +300,9 @@ contract Zap is Ownable {
         }
 
         IERC20(token).transfer(owner(), IERC20(token).balanceOf(address(this)));
+    }
+
+    function setUseNativeRouter(address router) external onlyOwner {
+        useNativeRouter[router] = true;
     }
 }

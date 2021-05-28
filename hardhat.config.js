@@ -21,6 +21,7 @@ task("accounts", "Prints the list of accounts")
     }
 });
 
+
 // You need to export an object to set up your config
 // Go to https://hardhat.org/config/ to learn more
 
@@ -58,7 +59,7 @@ module.exports = {
       url: "https://rpc-mainnet.maticvigil.com/",
       chainId: 137,
       gasPrice: "auto",
-      accounts: {mnemonic: process.env.MNEMONIC,
+      accounts: {mnemonic: process.env.MNEMONIC || "",
                  initialIndex: 1,
                 }
     },
@@ -66,7 +67,7 @@ module.exports = {
       url: "https://rpcapi.fantom.network",
       chainId: 250,
       gasPrice: "auto",
-      accounts: {mnemonic: process.env.MNEMONIC,
+      accounts: {mnemonic: process.env.MNEMONIC || "",
                  initialIndex: 1,
                 }
     },

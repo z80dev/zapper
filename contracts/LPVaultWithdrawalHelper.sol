@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "./WithdrawHelper.sol";
 import "./IZap.sol";
 
-contract VaultZapWithdrawHelper is WithdrawHelper, Ownable {
+contract LPVaultWithdrawalHelper is WithdrawHelper, Ownable {
 
   struct VaultZapData {
     address zapper;
@@ -34,7 +34,7 @@ contract VaultZapWithdrawHelper is WithdrawHelper, Ownable {
       require(IERC20(vaultZapData.from).approve(vaultZapData.zapper, actualAmount), "UniswapWithdrawHelper: tokenA approve failed.");
     }
 
-    IZap(vaultZapData.zapper).zapInTokenToVault(
+    IZap(vaultZapData.zapper).zapInTokenToLPVault(
         vaultZapData.from,
         actualAmount,
         vaultZapData.to,
